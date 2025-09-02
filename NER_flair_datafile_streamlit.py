@@ -923,7 +923,7 @@ class BatchEntityLinker:
         df = st.session_state.df
         columns = list(df.columns)
         
-        # Find first character/string column for ID default
+        # Find first character/string column for text default
         def find_first_character_column(df, columns):
             """Find the first column that contains character/string data."""
             for col in columns:
@@ -941,22 +941,13 @@ class BatchEntityLinker:
             return columns[1] if len(columns) > 1 else columns[0]  # Fallback to second column or first
         
         # Determine default indices
-        text_default_index = 0  # First column
-        id_default_column = find_first_character_column(df, columns)
-        id_default_index = columns.index(id_default_column) if id_default_column in columns else (1 if len(columns) > 1 else 0)
+        id_default_index = 0  # First column for ID
+        text_default_column = find_first_character_column(df, columns)
+        text_default_index = columns.index(text_default_column) if text_default_column in columns else (1 if len(columns) > 1 else 0)
         
         col1, col2 = st.columns(2)
         
         with col1:
-            text_column = st.selectbox(
-                "Text Column",
-                columns,
-                index=text_default_index,
-                help="Select the column containing the text to process"
-            )
-            st.session_state.text_column = text_column
-        
-        with col2:
             id_column = st.selectbox(
                 "Unique ID Column",
                 columns,
@@ -964,6 +955,15 @@ class BatchEntityLinker:
                 help="Select the column to use as unique identifier for naming output files"
             )
             st.session_state.id_column = id_column
+        
+        with col2:
+            text_column = st.selectbox(
+                "Text Column",
+                columns,
+                index=text_default_index,
+                help="Select the column containing the text to process"
+            )
+            st.session_state.text_column = text_column
         
         # Show sample of selected columns (only after both columns are selected)
         if text_column and id_column:
@@ -992,7 +992,7 @@ class BatchEntityLinker:
             
             # Add warning if same column is selected for both
             if text_column == id_column:
-                st.warning("⚠️ You've selected the same column for both Text and ID. This will work, but consider using a separate unique identifier column if available.")
+                st.warning("You've selected the same column for both Text and ID. This will work, but consider using a separate unique identifier column if available.")
             
             return True
         
