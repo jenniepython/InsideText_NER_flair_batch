@@ -117,6 +117,7 @@ import sys
 import os
 import shutil
 from datetime import datetime
+import zipfile
 
 # We'll include the EntityLinker class in this same file instead of importing
 # This makes the app self-contained
@@ -1127,6 +1128,36 @@ class BatchEntityLinker:
             with st.expander("Processed Files", expanded=True):
                 files_df = pd.DataFrame(processed_files, columns=['ID', 'Filename', 'Entities'])
                 st.dataframe(files_df, use_container_width=True)
+                                # --- NEW: Offer downloads ---
+                # 1) Download ALL JSON-LD files as a single ZIP (built in-memory)
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    for _, filename, _ in processed_files:
+                        zf.write(os.path.join(output_dir, filename), arcname=filename)
+                zip_buffer.seek(0)
+        
+                zip_name = f"{os.path.basename(output_dir) or 'outputs'}.zip"
+                st.download_button(
+                    label=f"Download all {len(processed_files)} JSON-LD files (ZIP)",
+                    data=zip_buffer,
+                    file_name=zip_name,
+                    mime="application/zip",
+                    use_container_width=True
+                )
+        
+                # 2) Optional: per-file download buttons
+                with st.expander("Download individual files"):
+                    for _, filename, _ in processed_files:
+                        file_path = os.path.join(output_dir, filename)
+                        # Read bytes so Streamlit can serve the file
+                        with open(file_path, "rb") as fh:
+                            st.download_button(
+                                label=f"Download {filename}",
+                                data=fh.read(),
+                                file_name=filename,
+                                mime="application/ld+json"
+                            )
+
         
         # Show errors if any
         if errors:
