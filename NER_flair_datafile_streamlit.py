@@ -157,7 +157,7 @@ class EntityLinker:
             # Load the standard NER model from Flair
             tagger = SequenceTagger.load('ner')
             
-            loading_placeholder.success(f"Loaded Flair NER model successfully")
+#            loading_placeholder.success(f"Loaded Flair NER model successfully")
             return tagger
         except Exception as e:
             st.error(f"Failed to load Flair NER model: {e}")
@@ -849,7 +849,7 @@ class BatchEntityLinker:
             if os.path.exists(logo_path):
                 st.image(logo_path, width=300)
             else:
-                st.info("💡 Place your logo.png file in the same directory as this app to display it here")
+                st.info("Place your logo.png file in the same directory as this app to display it here")
         except Exception as e:
             st.warning(f"Could not load logo: {e}")
         
@@ -863,19 +863,19 @@ class BatchEntityLinker:
         <div style="background-color: white; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #E0D7C0;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <div style="background-color: #C4C3A2; padding: 10px; border-radius: 5px; display: inline-block; margin: 5px;">
-                     <strong>Upload File</strong><br><small>CSV/Excel</small>
+                     <strong>Upload File</strong>
                 </div>
                 <div style="margin: 10px 0;">⬇️</div>
                 <div style="background-color: #9fd2cd; padding: 10px; border-radius: 5px; display: inline-block; margin: 5px;">
-                     <strong>Select Columns</strong><br><small>Text & ID columns</small>
+                     <strong>Select Columns</strong>
                 </div>
                 <div style="margin: 10px 0;">⬇️</div>
                 <div style="background-color: #EFCA89; padding: 10px; border-radius: 5px; display: inline-block; margin: 5px;">
-                     <strong>Process Batch</strong><br><small>Extract entities</small>
+                     <strong>Process Batch</strong>
                 </div>
                 <div style="margin: 10px 0;">⬇️</div>
                 <div style="background-color: #BF7B69; padding: 10px; border-radius: 5px; display: inline-block; margin: 5px;">
-                     <strong>JSON-LD Files</strong><br><small>Individual outputs</small>
+                     <strong>JSON-LD Files</strong>
                 </div>
             </div>
         </div>
@@ -975,7 +975,7 @@ class BatchEntityLinker:
         st.session_state.output_dir = output_dir
         
         if output_dir:
-            st.info(f"Files will be saved to: `./{output_dir}/`")
+#            st.info(f"Files will be saved to: `./{output_dir}/`")
             return True
         
         return False
