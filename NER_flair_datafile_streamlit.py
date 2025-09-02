@@ -843,15 +843,8 @@ class BatchEntityLinker:
 
     def render_header(self):
         """Render the application header."""
-        # Display logo if it exists
-        try:
-            logo_path = "logo.png"  
-            if os.path.exists(logo_path):
-                st.image(logo_path, width=300)
-            else:
-                st.info("Place your logo.png file in the same directory as this app to display it here")
-        except Exception as e:
-            st.warning(f"Could not load logo: {e}")
+        logo_path = "logo.png"  
+        st.image(logo_path, width=300)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
