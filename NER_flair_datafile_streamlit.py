@@ -851,14 +851,8 @@ class BatchEntityLinker:
     def render_header(self):
         """Render the application header."""
         # Display logo if it exists
-        try:
-            logo_path = "logo.png"  
-            if os.path.exists(logo_path):
-                st.image(logo_path, width=300)
-            else:
-                st.info("Place your logo.png file in the same directory as this app to display it here")
-        except Exception as e:
-            st.warning(f"Could not load logo: {e}")
+        logo_path = "logo.png"  
+        st.image(logo_path, width=300)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -900,29 +894,41 @@ class BatchEntityLinker:
         
         if uploaded_file is not None:
             try:
-                # Load the file
-                if uploaded_file.name.endswith('.csv'):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    df = pd.read_excel(uploaded_file)
+                # Check if this is a new file by comparing name and size
+                current_file_info = (uploaded_file.name, uploaded_file.size)
+                stored_file_info = st.session_state.get('current_file_info', None)
                 
-                st.session_state.df = df
-                # Reset processing results when new file is uploaded
-                st.session_state.processing_complete = False
-                st.session_state.processed_files = []
-                st.session_state.processing_errors = []
+                is_new_file = (stored_file_info != current_file_info)
                 
-                st.success(f"File uploaded successfully! {len(df)} rows, {len(df.columns)} columns")
+                if is_new_file or st.session_state.df is None:
+                    # Load the file
+                    if uploaded_file.name.endswith('.csv'):
+                        df = pd.read_csv(uploaded_file)
+                    else:
+                        df = pd.read_excel(uploaded_file)
+                    
+                    st.session_state.df = df
+                    st.session_state.current_file_info = current_file_info
+                    
+                    # Only reset processing results when a genuinely new file is uploaded
+                    if is_new_file:
+                        st.session_state.processing_complete = False
+                        st.session_state.processed_files = []
+                        st.session_state.processing_errors = []
+                    
+                    st.success(f"File uploaded successfully! {len(df)} rows, {len(df.columns)} columns")
                 
-                # Show preview
-                with st.expander("Preview Data", expanded=True):
-                    st.dataframe(df.head(10), use_container_width=True)
+                # Always show preview if we have data
+                if st.session_state.df is not None:
+                    with st.expander("Preview Data", expanded=True):
+                        st.dataframe(st.session_state.df.head(10), use_container_width=True)
                     
             except Exception as e:
                 st.error(f"Error reading file: {e}")
                 st.session_state.df = None
         
-        return uploaded_file is not None
+        # Return True if we have a dataframe, regardless of whether file is currently uploaded
+        return st.session_state.df is not None
 
     def render_column_selection(self):
         """Render column selection section."""
