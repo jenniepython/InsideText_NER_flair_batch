@@ -157,7 +157,7 @@ class EntityLinker:
             # Load the standard NER model from Flair
             tagger = SequenceTagger.load('ner')
             
-#            loading_placeholder.success(f"Loaded Flair NER model successfully")
+            loading_placeholder.empty()  # Clear the loading message
             return tagger
         except Exception as e:
             st.error(f"Failed to load Flair NER model: {e}")
@@ -840,11 +840,25 @@ class BatchEntityLinker:
             st.session_state.id_column = None
         if 'output_dir' not in st.session_state:
             st.session_state.output_dir = None
+        # Add these new session state variables for persistent results
+        if 'processing_complete' not in st.session_state:
+            st.session_state.processing_complete = False
+        if 'processed_files' not in st.session_state:
+            st.session_state.processed_files = []
+        if 'processing_errors' not in st.session_state:
+            st.session_state.processing_errors = []
 
     def render_header(self):
         """Render the application header."""
-        logo_path = "logo.png"  
-        st.image(logo_path, width=300)
+        # Display logo if it exists
+        try:
+            logo_path = "logo.png"  
+            if os.path.exists(logo_path):
+                st.image(logo_path, width=300)
+            else:
+                st.info("Place your logo.png file in the same directory as this app to display it here")
+        except Exception as e:
+            st.warning(f"Could not load logo: {e}")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -893,6 +907,11 @@ class BatchEntityLinker:
                     df = pd.read_excel(uploaded_file)
                 
                 st.session_state.df = df
+                # Reset processing results when new file is uploaded
+                st.session_state.processing_complete = False
+                st.session_state.processed_files = []
+                st.session_state.processing_errors = []
+                
                 st.success(f"File uploaded successfully! {len(df)} rows, {len(df.columns)} columns")
                 
                 # Show preview
@@ -1005,7 +1024,6 @@ class BatchEntityLinker:
         st.session_state.output_dir = output_dir
         
         if output_dir:
-#            st.info(f"Files will be saved to: `./{output_dir}/`")
             return True
         
         return False
@@ -1143,6 +1161,20 @@ class BatchEntityLinker:
         progress_bar.empty()
         status_text.empty()
         
+        # Store results in session state for persistence
+        st.session_state.processed_files = processed_files
+        st.session_state.processing_errors = errors
+        st.session_state.processing_complete = True
+
+    def display_results(self):
+        """Display processing results from session state."""
+        if not st.session_state.processing_complete:
+            return
+        
+        processed_files = st.session_state.processed_files
+        errors = st.session_state.processing_errors
+        output_dir = st.session_state.output_dir
+        
         # Show results
         st.success(f"Processing complete! {len(processed_files)} files created in '{output_dir}/'")
         
@@ -1158,12 +1190,15 @@ class BatchEntityLinker:
             with st.expander("Processed Files", expanded=True):
                 files_df = pd.DataFrame(processed_files, columns=['ID', 'Filename', 'Entities'])
                 st.dataframe(files_df, use_container_width=True)
-                                # --- NEW: Offer downloads ---
+                
+                # --- Download options ---
                 # 1) Download ALL JSON-LD files as a single ZIP (built in-memory)
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
                     for _, filename, _ in processed_files:
-                        zf.write(os.path.join(output_dir, filename), arcname=filename)
+                        file_path = os.path.join(output_dir, filename)
+                        if os.path.exists(file_path):  # Check if file still exists
+                            zf.write(file_path, arcname=filename)
                 zip_buffer.seek(0)
         
                 zip_name = f"{os.path.basename(output_dir) or 'outputs'}.zip"
@@ -1179,21 +1214,27 @@ class BatchEntityLinker:
                 with st.expander("Download individual files"):
                     for _, filename, _ in processed_files:
                         file_path = os.path.join(output_dir, filename)
-                        # Read bytes so Streamlit can serve the file
-                        with open(file_path, "rb") as fh:
-                            st.download_button(
-                                label=f"Download {filename}",
-                                data=fh.read(),
-                                file_name=filename,
-                                mime="application/ld+json"
-                            )
-
+                        if os.path.exists(file_path):  # Check if file still exists
+                            with open(file_path, "rb") as fh:
+                                st.download_button(
+                                    label=f"Download {filename}",
+                                    data=fh.read(),
+                                    file_name=filename,
+                                    mime="application/ld+json"
+                                )
         
         # Show errors if any
         if errors:
             with st.expander("Errors", expanded=False):
                 for error in errors:
                     st.error(error)
+        
+        # Add button to clear results
+        if st.button("Clear Results and Start New Processing", type="secondary"):
+            st.session_state.processing_complete = False
+            st.session_state.processed_files = []
+            st.session_state.processing_errors = []
+            st.rerun()
 
     def run(self):
         """Main application runner."""
@@ -1255,8 +1296,13 @@ class BatchEntityLinker:
                     # Step 4: Process button
                     st.header("4. Process Batch")
                     
-                    if st.button("Start Batch Processing", type="primary", use_container_width=True):
-                        self.process_batch()
+                    # Show process button only if processing isn't complete
+                    if not st.session_state.processing_complete:
+                        if st.button("Start Batch Processing", type="primary", use_container_width=True):
+                            self.process_batch()
+                    
+                    # Always display results if available
+                    self.display_results()
 
 
 def main():
