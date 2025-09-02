@@ -923,12 +923,35 @@ class BatchEntityLinker:
         df = st.session_state.df
         columns = list(df.columns)
         
+        # Find first character/string column for ID default
+        def find_first_character_column(df, columns):
+            """Find the first column that contains character/string data."""
+            for col in columns:
+                try:
+                    # Check if column is object type (usually strings) or has string-like content
+                    if df[col].dtype == 'object':
+                        # Check if it contains mostly non-numeric strings
+                        sample_values = df[col].dropna().head(10).astype(str)
+                        if any(not val.replace('.', '').replace('-', '').isdigit() for val in sample_values):
+                            return col
+                    elif df[col].dtype.kind in ['U', 'S']:  # Unicode or byte string types
+                        return col
+                except:
+                    continue
+            return columns[1] if len(columns) > 1 else columns[0]  # Fallback to second column or first
+        
+        # Determine default indices
+        text_default_index = 0  # First column
+        id_default_column = find_first_character_column(df, columns)
+        id_default_index = columns.index(id_default_column) if id_default_column in columns else (1 if len(columns) > 1 else 0)
+        
         col1, col2 = st.columns(2)
         
         with col1:
             text_column = st.selectbox(
                 "Text Column",
                 columns,
+                index=text_default_index,
                 help="Select the column containing the text to process"
             )
             st.session_state.text_column = text_column
@@ -937,14 +960,24 @@ class BatchEntityLinker:
             id_column = st.selectbox(
                 "Unique ID Column",
                 columns,
+                index=id_default_index,
                 help="Select the column to use as unique identifier for naming output files"
             )
             st.session_state.id_column = id_column
         
-        # Show sample of selected columns
+        # Show sample of selected columns (only after both columns are selected)
         if text_column and id_column:
             st.subheader("Sample Data")
-            sample_df = df[[id_column, text_column]].head(5)
+            
+            # Fix: Handle case where same column is selected for both text and ID
+            if text_column == id_column:
+                # If same column selected for both, show it once with a descriptive name
+                sample_df = df[[text_column]].head(5).copy()
+                sample_df.columns = [f"{text_column} (Text & ID)"]
+            else:
+                # If different columns, show both
+                sample_df = df[[id_column, text_column]].head(5)
+            
             st.dataframe(sample_df, use_container_width=True)
             
             # Show text length statistics
@@ -956,6 +989,10 @@ class BatchEntityLinker:
                 st.metric("Max Text Length", f"{text_lengths.max():.0f} chars")
             with col3:
                 st.metric("Rows to Process", len(df))
+            
+            # Add warning if same column is selected for both
+            if text_column == id_column:
+                st.warning("⚠️ You've selected the same column for both Text and ID. This will work, but consider using a separate unique identifier column if available.")
             
             return True
         
